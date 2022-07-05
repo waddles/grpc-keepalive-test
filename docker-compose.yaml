@@ -1,0 +1,40 @@
+version: "3.3"
+
+services:
+
+  traefik:
+    environment:
+      GODEBUG: http2debug=2
+      GRPC_TRACE: all
+      GRPC_VERBOSITY: DEBUG
+    image: "traefik:v2.7"
+    container_name: "traefik"
+    command:
+      #- "--log.level=DEBUG"
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+
+  server:
+    build: .
+    image: "grpc-keepalive-test"
+    container_name: "grpc-server"
+    ports:
+      - "50052:50052"
+    environment:
+      GODEBUG: http2debug=2
+      GRPC_TRACE: all
+      GRPC_VERBOSITY: DEBUG
+    command: /usr/local/bin/grpc-keepalive-server
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.grpc-server.entrypoints=web"
+      - "traefik.http.routers.grpc-server.rule=PathPrefix(`/grpc.`)"
+      - "traefik.http.services.grpc-server.loadbalancer.server.scheme=h2c"
+
